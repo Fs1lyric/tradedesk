@@ -95,3 +95,17 @@ def test_rank_filters_and_orders():
     b = ranked[0]
     assert b.score == pytest.approx((0.04 - 0.001) / 0.03)
     assert b.confidence == 1.0
+
+
+def test_feature_frame_is_causal():
+    """Features at t from the full series equal features from the series cut at t."""
+    from app.services.signals.composite import compute_feature_frame
+
+    full = trending_bars(n=300, seed=9)
+    frame = compute_feature_frame(full)
+    for t in (80, 150, 299):
+        cut = Bars(*(getattr(full, k)[: t + 1] for k in ("open", "high", "low", "close", "volume")))
+        part = compute_feature_frame(cut)
+        for k, v in frame.items():
+            a, b = v[t], part[k][t]
+            assert (np.isnan(a) and np.isnan(b)) or a == pytest.approx(b), (k, t)
