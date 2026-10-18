@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import distinct_on, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models import NewsItem, NewsTicker, SignalSnapshot
@@ -30,6 +30,7 @@ HORIZON = 5  # bars ahead the expected return is for
 MIN_CALIBRATION = 100
 HISTORY = timedelta(days=400)
 NEWS_DAYS = 30
+MAX_STALENESS = timedelta(days=5)  # older last bars mean the data feed stopped
 
 
 def _clean(v: Any) -> Any:
@@ -64,7 +65,7 @@ async def compute_signals(
 ) -> list[SignalSnapshot]:
     data = await load_bars(sessions, symbols, timeframe, start=now - HISTORY, end=now)
     frames = {sym: compute_feature_frame(_bars(rows)) for sym, rows in data.items()
-              if len(rows) >= MIN_BARS}
+              if len(rows) >= MIN_BARS and rows[-1].ts >= now - MAX_STALENESS}
 
     # One calibrator pooled over the universe: score at t against the return t -> t+h.
     d_hist, fwd = [], []
@@ -110,6 +111,6 @@ async def latest_snapshots(s: AsyncSession, symbols: Sequence[str], now: datetim
         .where(SignalSnapshot.symbol.in_(symbols), SignalSnapshot.ts <= now,
                SignalSnapshot.ts > now - max_age)
         .order_by(SignalSnapshot.symbol, SignalSnapshot.ts.desc())
-        .distinct(SignalSnapshot.symbol)
+        .ext(distinct_on(SignalSnapshot.symbol))
     )
     return {r.symbol: r for r in rows}

@@ -110,14 +110,14 @@ async def _run_account(rt: Runtime, acct: BrokerAccount, rules: list[Rule], now:
         equity = (await broker.get_account()).equity
         held = {p.symbol: p.qty for p in await broker.get_positions()}
     async with rt.sessions() as s:
-        pending = set((await s.execute(
+        pending = {(r, sym) for r, sym in await s.execute(
             select(Recommendation.rule_id, Recommendation.symbol)
             .where(Recommendation.account_id == acct.id, Recommendation.status == "pending")
-        )).tuples())
-        cooling = set((await s.execute(
+        )}
+        cooling = {(r, sym) for r, sym in await s.execute(
             select(Cooldown.rule_id, Cooldown.symbol)
             .where(Cooldown.account_id == acct.id, Cooldown.until > now)
-        )).tuples())
+        )}
 
     made = []
     for rule in rules:

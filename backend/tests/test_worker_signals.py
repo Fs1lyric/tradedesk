@@ -15,8 +15,10 @@ from tests.conftest import requires_db, signup
 
 pytestmark = requires_db
 
-T0 = datetime(2025, 3, 1, 5, tzinfo=UTC)
-NOW = T0 + timedelta(days=260)
+# Bars end yesterday: signals ignore symbols whose data is stale, and auto execution runs on
+# the wall clock.
+T0 = datetime.now(UTC).replace(hour=5, minute=0, second=0, microsecond=0) - timedelta(days=250)
+NOW = T0 + timedelta(days=249, hours=12)
 ACCOUNT = {"broker": "alpaca", "label": "paper", "api_key": "PK123456", "api_secret": "s"}
 RULE = {
     "name": "trend follower",
@@ -120,15 +122,14 @@ async def test_approve_rule_creates_one_sized_recommendation(api, market):
 async def test_auto_rule_executes_and_cools_down(api, market):
     headers, acct, broker, rt, _ = market
     await api.post(f"/accounts/{acct}/rules", headers=headers, json={**RULE, "mode": "auto"})
-    now = datetime.now(UTC)  # the execution service checks cooldowns on the wall clock
-    await compute_signals(rt.sessions, ["AAPL"], now)
-    made = await run_rules(rt, now)
+    await compute_signals(rt.sessions, ["AAPL"], NOW)
+    made = await run_rules(rt, NOW)
     assert len(made) == 1
     async with rt.sessions() as s:
         assert (await s.get(Recommendation, made[0])).status == "executed"
         assert (await s.scalar(select(Order))).symbol == "AAPL"
     assert len(broker.orders) == 1
-    assert await run_rules(rt, now) == []  # cooling down
+    assert await run_rules(rt, NOW) == []  # cooling down
 
 
 async def test_rules_skip_kill_switched_and_disabled(api, market):
@@ -140,6 +141,11 @@ async def test_rules_skip_kill_switched_and_disabled(api, market):
     await api.patch(f"/rules/{rule['id']}", headers=headers, json={"enabled": True})
     await api.patch(f"/accounts/{acct}", headers=headers, json={"kill_switch": True})
     assert await run_rules(rt, NOW) == []
+
+
+async def test_stale_bars_give_no_signal(api, market):
+    *_, rt, _ = market
+    assert await compute_signals(rt.sessions, ["AAPL"], NOW + timedelta(days=10)) == []
 
 
 async def test_rule_not_matching(api, market):
