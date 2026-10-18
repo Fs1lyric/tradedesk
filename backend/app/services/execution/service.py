@@ -11,7 +11,7 @@ import logging
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol
 
 from app.services.analytics.lots import Fill, match_fills
@@ -126,7 +126,7 @@ class InMemoryExecutionStore:
     intents: dict[str, IntentRecord] = field(default_factory=dict)
     orders: dict[str, OrderRecord] = field(default_factory=dict)
     fill_list: list[FillRecord] = field(default_factory=list)
-    halted: dict[str, bool] = field(default_factory=dict)
+    halted: dict[str, set[date]] = field(default_factory=dict)
     kill: dict[str, bool] = field(default_factory=dict)
     cooldown_map: dict[str, dict[tuple[str, str], datetime]] = field(default_factory=dict)
 
@@ -176,10 +176,10 @@ class InMemoryExecutionStore:
         self.cooldown_map.setdefault(account_id, {})[(rule_id, symbol)] = until
 
     async def is_halted(self, account_id: str, day: datetime) -> bool:
-        return self.halted.get(account_id, False)
+        return day.date() in self.halted.get(account_id, set())
 
     async def set_halted(self, account_id: str, day: datetime) -> None:
-        self.halted[account_id] = True
+        self.halted.setdefault(account_id, set()).add(day.date())
 
     async def kill_switch(self, account_id: str) -> bool:
         return self.kill.get(account_id, False)
