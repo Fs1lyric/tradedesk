@@ -20,6 +20,7 @@ async def desk(api):
     headers = await signup(api)
     acct = (await api.post("/accounts", headers=headers, json=ACCOUNT)).json()["id"]
     broker = FakeBroker(cash=100_000)
+    broker.fill_immediately = False  # tests fill orders themselves
     broker.set_quote("AAPL", 99.95, 100.05)
     api.app.state.broker_factory = lambda account, settings: broker
     return headers, acct, broker
