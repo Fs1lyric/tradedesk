@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api import (
@@ -54,6 +55,15 @@ def create_app(
     app.state.events = events or RedisEventBus(app.state.settings.redis_url)
     app.state.locks = locks or RedisAccountLocks(app.state.settings.redis_url)
     app.state.broker_factory = build_broker
+    app.add_middleware(
+        CORSMiddleware, allow_origins=app.state.settings.cors_origins, allow_credentials=True,
+        allow_methods=["*"], allow_headers=["Authorization", "Content-Type"],
+    )
+
+    @app.get("/health", include_in_schema=False)
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
     for module in (
         auth, accounts, watchlists, rules, news, recommendations, orders, backtests, ws,
     ):

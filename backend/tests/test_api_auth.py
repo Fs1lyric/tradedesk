@@ -95,3 +95,15 @@ async def test_totp_enrol_then_login_requires_code(api):
     assert r.status_code == 401
     assert r.json()["detail"] == "totp required"
     await _login(api, totp_code=pyotp.TOTP(secret).now())
+
+
+async def test_health_and_cors_preflight(api):
+    assert (await api.get("/health")).json() == {"status": "ok"}
+    r = await api.options("/auth/login", headers={
+        "Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST",
+    })
+    assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
+    r = await api.options("/auth/login", headers={
+        "Origin": "https://evil.example", "Access-Control-Request-Method": "POST",
+    })
+    assert "access-control-allow-origin" not in r.headers

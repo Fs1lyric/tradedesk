@@ -36,3 +36,16 @@ jobs:
         run: uv run mypy app
       - name: tests
         run: uv run pytest -q
+
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: compose file is valid
+        run: cp .env.example .env && docker compose config -q
+      - name: backend image builds and imports
+        run: |
+          docker build -t tradedesk-backend backend
+          docker run --rm -e JWT_SECRET=$(printf 'x%.0s' $(seq 32)) \
+            -e MASTER_KEY=$(head -c 32 /dev/zero | base64) tradedesk-backend \
+            python -c "from app.main import create_app; create_app(); import app.workers.tasks"
