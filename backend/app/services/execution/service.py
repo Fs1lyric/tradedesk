@@ -393,7 +393,9 @@ class ExecutionService:
         by_coid = {o.client_order_id: o for o in by_id.values()}
         changed = []
         for rec in open_orders:
-            bo = by_id.get(rec.broker_order_id) or by_coid.get(rec.client_order_id)
+            bo = (by_id.get(rec.broker_order_id) if rec.broker_order_id else None) or by_coid.get(
+                rec.client_order_id
+            )
             if bo is None:
                 continue
             rec.broker_order_id = bo.broker_order_id
