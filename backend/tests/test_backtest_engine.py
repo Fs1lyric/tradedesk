@@ -5,8 +5,8 @@ import pytest
 
 from app.services.backtest.costs import CostModel
 from app.services.backtest.engine import (
-    Backtester,
     BacktestConfig,
+    Backtester,
     NewsEvent,
     SimOrder,
     Strategy,
@@ -76,9 +76,8 @@ def test_time_stop_exits_next_open():
 
 
 def test_costs_are_adverse():
-    cfg = BacktestConfig(initial_cash=10_000, costs=CostModel(slippage_bps=10, spread_bps=0,
-                                                              impact_k=0, commission_per_share=0.01),
-                         bar_duration=timedelta(hours=6.5))
+    costs = CostModel(slippage_bps=10, spread_bps=0, impact_k=0, commission_per_share=0.01)
+    cfg = BacktestConfig(initial_cash=10_000, costs=costs, bar_duration=timedelta(hours=6.5))
     res = run(BuyFirstBar(), {"X": bars([100, 100, 100])}, cfg)
     assert res.fills[0].price == pytest.approx(100 * 1.001)
     assert res.fills[0].fee == pytest.approx(0.1)
