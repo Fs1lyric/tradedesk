@@ -29,7 +29,7 @@ RULE = {
 
 def uptrend(n: int = 250, seed: int = 1) -> list[Bar]:
     rng = np.random.default_rng(seed)
-    close = 100 * np.exp(np.cumsum(0.003 + 0.01 * rng.standard_normal(n)))
+    close = 100 * np.exp(np.cumsum(0.003 + 0.004 * rng.standard_normal(n)))
     return [Bar(T0 + timedelta(days=i), c * 0.998, c * 1.01, c * 0.99, c, 1_000_000)
             for i, c in enumerate(close)]
 
