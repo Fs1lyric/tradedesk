@@ -43,7 +43,7 @@ class NewsDetail(NewsOut):
     body: str
 
 
-def _feed() -> Select[tuple[NewsItem, str]]:  # source is None for orphaned items
+def _feed() -> Select[NewsItem, str]:  # source is None for orphaned items
     return select(NewsItem, NewsSource.name).outerjoin(
         NewsSource, NewsSource.id == NewsItem.source_id
     )
