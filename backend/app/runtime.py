@@ -15,6 +15,7 @@ from app.core.events import EventBus, RedisEventBus, order_channel, order_event
 from app.core.locks import AccountLocks, RedisAccountLocks
 from app.db import make_engine, make_sessionmaker
 from app.models import BrokerAccount
+from app.services.brokers.alpaca import AlpacaAdapter
 from app.services.brokers.base import BrokerAdapter
 from app.services.brokers.registry import BrokerFactory, build_broker
 from app.services.execution.service import ExecutionService, OrderRecord
@@ -49,6 +50,12 @@ class Runtime:
         engine = self.sessions.kw.get("bind")
         if engine is not None:
             await engine.dispose()
+
+    def data_client(self) -> AlpacaAdapter | None:
+        """The shared market-data client, if data keys are configured."""
+        if not (self.settings.alpaca_data_key and self.settings.alpaca_data_secret):
+            return None
+        return AlpacaAdapter(self.settings.alpaca_data_key, self.settings.alpaca_data_secret)
 
     async def publish_order(self, rec: OrderRecord) -> None:
         await self.bus.publish(order_channel(rec.account_id), order_event(rec))

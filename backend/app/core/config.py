@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     totp_issuer: str = "tradedesk"
+    # Market data and news come from one Alpaca key pair (paper keys work), separate from the
+    # users' trading keys. Without them the bar and Alpaca-news jobs are skipped.
+    alpaca_data_key: str | None = None
+    alpaca_data_secret: str | None = None
+    cors_origins: list[str] = ["http://localhost:5173"]
 
     @field_validator("jwt_secret")
     @classmethod
