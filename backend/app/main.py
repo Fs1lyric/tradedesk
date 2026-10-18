@@ -19,18 +19,20 @@ from app.api import (
     watchlists,
     ws,
 )
-from app.api.trading import alpaca_broker
 from app.core.config import Settings, get_settings
 from app.core.events import EventBus, RedisEventBus
+from app.core.locks import AccountLocks, RedisAccountLocks
 from app.db import make_engine, make_sessionmaker
+from app.services.brokers.registry import build_broker
 
 
 def create_app(
     settings: Settings | None = None,
     sessions: async_sessionmaker[AsyncSession] | None = None,
     events: EventBus | None = None,
+    locks: AccountLocks | None = None,
 ) -> FastAPI:
-    """Build the app. Tests pass their own settings, sessionmaker and event bus; otherwise
+    """Build the app. Tests pass their own settings, sessionmaker, event bus and locks; otherwise
     they come from the environment and the engine lives as long as the app."""
 
     @asynccontextmanager
@@ -41,6 +43,7 @@ def create_app(
             app.state.sessions = make_sessionmaker(engine)
         yield
         await app.state.events.aclose()
+        await app.state.locks.aclose()
         if engine is not None:
             await engine.dispose()
 
@@ -49,7 +52,8 @@ def create_app(
     app.state.sessions = sessions
     # Built here, not in lifespan, because httpx's ASGITransport never runs lifespan.
     app.state.events = events or RedisEventBus(app.state.settings.redis_url)
-    app.state.broker_factory = alpaca_broker
+    app.state.locks = locks or RedisAccountLocks(app.state.settings.redis_url)
+    app.state.broker_factory = build_broker
     for module in (
         auth, accounts, watchlists, rules, news, recommendations, orders, backtests, ws,
     ):

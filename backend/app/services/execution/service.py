@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol
@@ -206,12 +206,22 @@ class ExecutionService:
         store: ExecutionStore,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         slippage_bps: float = DEFAULT_SLIPPAGE_BPS,
+        on_order: Callable[[OrderRecord], Awaitable[None]] | None = None,
     ):
         self.broker = broker
         self.risk = risk
         self.store = store
         self.clock = clock
         self.slippage_bps = slippage_bps
+        self.on_order = on_order  # called after every stored order change, e.g. to publish
+
+    async def _save(self, rec: OrderRecord) -> None:
+        await self.store.update_order(rec)
+        if self.on_order is not None:
+            try:
+                await self.on_order(rec)
+            except Exception:
+                log.exception("on_order hook failed for %s", rec.id)
 
     async def _account_state(self, account_id: str, now: datetime, symbol: str) -> AccountState:
         acct = await self.broker.get_account()
@@ -328,11 +338,11 @@ class ExecutionService:
         except Exception:
             log.exception("submit failed for %s", intent.key)
             rec.status = transition(rec.status, S.BROKER_REJECTED)
-            await self.store.update_order(rec)
+            await self._save(rec)
             return ExecutionResult(result, rec)
         rec.broker_order_id = bo.broker_order_id
         self._apply_status(rec, bo)
-        await self.store.update_order(rec)
+        await self._save(rec)
         return ExecutionResult(result, rec)
 
     def _apply_status(self, rec: OrderRecord, bo: BrokerOrder) -> bool:
@@ -359,7 +369,7 @@ class ExecutionService:
         if rec.broker_order_id is None:
             rec.broker_order_id = u.order.broker_order_id
         self._apply_status(rec, u.order)
-        await self.store.update_order(rec)
+        await self._save(rec)
         if u.fill_id and u.fill_qty and u.fill_price is not None:
             signed = u.fill_qty if u.order.side == "buy" else -u.fill_qty
             await self.store.add_fill(FillRecord(
@@ -400,7 +410,7 @@ class ExecutionService:
                 continue
             rec.broker_order_id = bo.broker_order_id
             if self._apply_status(rec, bo):
-                await self.store.update_order(rec)
+                await self._save(rec)
                 changed.append(rec.id)
         return changed
 

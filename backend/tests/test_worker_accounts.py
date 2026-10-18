@@ -63,7 +63,7 @@ async def test_snapshot_equity(api, desk):
     assert await snapshot_equity(rt, now) == 1  # same ts again is an upsert, not an error
 
 
-async def test_kill_switched_accounts_are_still_snapshotted_but_skip_nothing_else(api, desk):
+async def test_snapshot_includes_kill_switched_accounts(api, desk):
     headers, acct, _, rt = desk
     await api.patch(f"/accounts/{acct}", headers=headers, json={"kill_switch": True})
     assert await snapshot_equity(rt, datetime.now(UTC)) == 1

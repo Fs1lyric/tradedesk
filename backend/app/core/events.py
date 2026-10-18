@@ -88,3 +88,17 @@ class RedisEventBus:
 
 def order_channel(account_id: str) -> str:
     return f"orders:{account_id}"
+
+
+def order_event(rec: Any) -> Event:
+    """The WebSocket message for an order (an OrderRecord or an orders row)."""
+    fields = ("id", "account_id", "client_order_id", "broker_order_id", "symbol", "side", "qty",
+              "order_type", "order_class", "limit_price", "stop_loss", "take_profit",
+              "time_in_force", "status", "filled_qty", "filled_avg_price", "submitted_at",
+              "updated_at")
+    order = {f: getattr(rec, f) for f in fields}
+    order["status"] = str(order["status"])
+    for f in ("submitted_at", "updated_at"):
+        if order[f] is not None:
+            order[f] = order[f].isoformat()
+    return {"type": "order", "order": order}
