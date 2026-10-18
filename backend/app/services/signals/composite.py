@@ -89,7 +89,9 @@ def direction_score(features: dict[str, float], weights: dict[str, float] | None
     return float(sum(wk * features.get(k, 0.0) for k, wk in w.items()))
 
 
-def fit_weights(X: np.ndarray, y: np.ndarray, names: list[str], l2: float = 1.0) -> dict[str, float]:
+def fit_weights(
+    X: np.ndarray, y: np.ndarray, names: list[str], l2: float = 1.0
+) -> dict[str, float]:
     """Ridge regression (no intercept) of the vol-scaled forward return on the features."""
     X, y = np.asarray(X, dtype=float), np.asarray(y, dtype=float)
     A = X.T @ X + l2 * np.eye(X.shape[1])
