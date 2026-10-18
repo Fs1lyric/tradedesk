@@ -43,6 +43,8 @@ async def api(migrated_db: str):
     from sqlalchemy import text
 
     from app.core.config import Settings
+    from app.core.events import InMemoryEventBus
+    from app.core.locks import LocalAccountLocks
     from app.db import make_engine, make_sessionmaker
     from app.main import create_app
 
@@ -50,7 +52,8 @@ async def api(migrated_db: str):
     async with engine.begin() as conn:
         await conn.execute(text("TRUNCATE users, symbols, news_sources CASCADE"))
     settings = Settings(jwt_secret="t" * 32, master_key=base64.b64encode(b"k" * 32).decode())
-    app = create_app(settings, make_sessionmaker(engine))
+    app = create_app(settings, make_sessionmaker(engine), events=InMemoryEventBus(),
+                     locks=LocalAccountLocks())
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         client.app = app  # type: ignore[attr-defined]
