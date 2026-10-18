@@ -35,53 +35,72 @@ class Bars:
         return len(self.close)
 
 
-def _last(x: np.ndarray) -> float:
-    v = float(x[-1])
-    return 0.0 if math.isnan(v) else v
+TECH_FEATURES = ["trend", "momentum", "rsi", "breakout", "volume"]
+
+
+def _rolling_volume_z(v: np.ndarray, n: int = 20) -> np.ndarray:
+    """z-score of each bar's volume against the previous n bars."""
+    out = np.zeros(len(v))
+    for t in range(n, len(v)):
+        out[t] = ind.zscore(float(v[t]), v[t - n : t])
+    return out
+
+
+def compute_feature_frame(bars: Bars) -> dict[str, np.ndarray]:
+    """Technical features for every bar. Each value at t uses only bars 0..t, so a backtest can
+    precompute the frame once without look-ahead."""
+    c = np.asarray(bars.close, dtype=float)
+    n = len(c)
+    atr = np.nan_to_num(ind.atr(bars.high, bars.low, c, 14), nan=0.0)
+    safe_atr = np.where(atr > 0, atr, 1e-9)
+    sma20, sma50, sma200 = ind.sma(c, 20), ind.sma(c, 50), ind.sma(c, 200)
+    _, _, hist = ind.macd(c)
+    rsi = np.nan_to_num(ind.rsi(c, 14), nan=50.0)
+    adx = np.nan_to_num(ind.adx(bars.high, bars.low, c, 14), nan=0.0)
+    pb = np.nan_to_num(ind.percent_b(c, 20, 2.0), nan=0.5)
+    vol_z = _rolling_volume_z(np.asarray(bars.volume, dtype=float))
+    sigma = np.full(n, np.nan)
+    if n > 1:
+        sigma[1:] = ind.ewma_vol(np.diff(np.log(c)))
+    rsi_feature = np.where(adx < 20, (50 - rsi) / 50, (rsi - 50) / 50)
+    regime = np.where(np.isnan(sma200), 0.0, np.where(c > np.nan_to_num(sma200), 1.0, -1.0))
+    return {
+        "trend": np.tanh(np.nan_to_num((sma20 - sma50) / safe_atr)),
+        "momentum": np.tanh(np.nan_to_num(hist / safe_atr)),
+        "rsi": np.clip(rsi_feature, -1, 1),
+        "breakout": np.clip(2 * pb - 1, -1, 1),
+        "volume": np.tanh(vol_z / 2),
+        "regime_long": regime,
+        "close": c,
+        "atr": atr,
+        "sigma_daily": np.nan_to_num(sigma, nan=0.0),
+        "rsi14": rsi,
+        "adx": adx,
+        "sma20": sma20,
+        "sma50": sma50,
+        "sma200": sma200,
+        "macd_hist": np.nan_to_num(hist),
+        "percent_b": pb,
+        "volume_z": vol_z,
+    }
+
+
+def features_at(
+    frame: dict[str, np.ndarray], t: int, sentiment: float = 0.0, attention_z: float = 0.0
+) -> dict[str, float]:
+    out = {k: float(v[t]) for k, v in frame.items()}
+    out["sentiment"] = float(np.clip(sentiment, -1, 1))
+    out["sentiment_attn"] = float(np.clip(sentiment * np.clip(attention_z / 3, 0, 1), -1, 1))
+    return out
 
 
 def compute_features(
     bars: Bars, sentiment: float = 0.0, attention_z: float = 0.0
 ) -> dict[str, float]:
     """Feature values at the last bar. Normalized features are in [-1, 1]."""
-    n = len(bars)
-    if n < MIN_BARS:
-        raise ValueError(f"need at least {MIN_BARS} bars, got {n}")
-    c = bars.close
-    atr = _last(ind.atr(bars.high, bars.low, c, 14)) or 1e-9
-    sma20, sma50 = _last(ind.sma(c, 20)), _last(ind.sma(c, 50))
-    sma200 = _last(ind.sma(c, 200)) if n >= 200 else None
-    _, _, hist = ind.macd(c)
-    rsi = _last(ind.rsi(c, 14)) or 50.0
-    adx = _last(ind.adx(bars.high, bars.low, c, 14))
-    pb = _last(ind.percent_b(c, 20, 2.0))
-    vol_z = ind.zscore(float(bars.volume[-1]), bars.volume[-21:-1])
-    log_r = np.diff(np.log(c))
-    sigma = _last(ind.ewma_vol(log_r))
-
-    rsi_feature = (50 - rsi) / 50 if adx < 20 else (rsi - 50) / 50
-    regime = 0.0 if sma200 is None else (1.0 if c[-1] > sma200 else -1.0)
-    return {
-        "trend": math.tanh((sma20 - sma50) / atr),
-        "momentum": math.tanh(_last(hist) / atr),
-        "rsi": float(np.clip(rsi_feature, -1, 1)),
-        "breakout": float(np.clip(2 * pb - 1, -1, 1)),
-        "volume": math.tanh(vol_z / 2),
-        "sentiment": float(np.clip(sentiment, -1, 1)),
-        "sentiment_attn": float(np.clip(sentiment * np.clip(attention_z / 3, 0, 1), -1, 1)),
-        "regime_long": regime,
-        "close": float(c[-1]),
-        "atr": atr,
-        "sigma_daily": sigma,
-        "rsi14": rsi,
-        "adx": adx,
-        "sma20": sma20,
-        "sma50": sma50,
-        "sma200": sma200 if sma200 is not None else float("nan"),
-        "macd_hist": _last(hist),
-        "percent_b": pb,
-        "volume_z": vol_z,
-    }
+    if len(bars) < MIN_BARS:
+        raise ValueError(f"need at least {MIN_BARS} bars, got {len(bars)}")
+    return features_at(compute_feature_frame(bars), len(bars) - 1, sentiment, attention_z)
 
 
 def direction_score(features: dict[str, float], weights: dict[str, float] | None = None) -> float:
