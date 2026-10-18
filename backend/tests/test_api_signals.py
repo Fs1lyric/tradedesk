@@ -12,7 +12,7 @@ ACCOUNT = {"broker": "alpaca", "label": "paper", "api_key": "PK123456", "api_sec
 RULE = {
     "name": "gap up on news",
     "universe": {"symbols": ["AAPL"]},
-    "when": {"field": "news.impact", "op": ">", "value": 0.5},
+    "when": {"feature": "news.impact", "op": ">", "value": 0.5},
     "action": {"side": "buy"},
 }
 
@@ -50,7 +50,7 @@ async def test_rule_validation(api):
     headers = await signup(api)
     acct = await _account(api, headers)
     base = f"/accounts/{acct}/rules"
-    bad_op = {**RULE, "when": {"field": "x", "op": "~=", "value": 1}}
+    bad_op = {**RULE, "when": {"feature": "x", "op": "~=", "value": 1}}
     assert (await api.post(base, headers=headers, json=bad_op)).status_code == 422
     bob = await signup(api, email="b@example.com")
     bobs = (await api.post("/watchlists", headers=bob, json={"name": "b"})).json()["id"]

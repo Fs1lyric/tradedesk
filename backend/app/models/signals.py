@@ -48,7 +48,7 @@ class Recommendation(Base):
     score: Mapped[float]
     confidence: Mapped[float]
     rationale: Mapped[dict[str, Any]] = mapped_column(default=dict)
-    # pending | approved | dismissed | executed | expired
+    # pending | dismissed | executed | rejected | expired
     status: Mapped[str] = mapped_column(Text, default="pending", index=True)
     created_at: Mapped[datetime] = created_at()
     expires_at: Mapped[datetime | None]

@@ -22,7 +22,7 @@ _SYMBOL = re.compile(r"^[A-Z][A-Z0-9.]{0,9}$")
 def normalize_symbol(raw: str) -> str:
     sym = raw.strip().upper()
     if not _SYMBOL.match(sym):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid symbol")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid symbol")
     return sym
 
 

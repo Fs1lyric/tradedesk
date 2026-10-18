@@ -8,7 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api import accounts, auth, watchlists
+from app.api import accounts, auth, news, recommendations, rules, watchlists
+from app.api.trading import alpaca_broker
 from app.core.config import Settings, get_settings
 from app.db import make_engine, make_sessionmaker
 
@@ -33,6 +34,7 @@ def create_app(
     app = FastAPI(title="tradedesk", lifespan=lifespan)
     app.state.settings = settings or get_settings()
     app.state.sessions = sessions
-    for module in (auth, accounts, watchlists):
+    app.state.broker_factory = alpaca_broker
+    for module in (auth, accounts, watchlists, rules, news, recommendations):
         app.include_router(module.router)
     return app
