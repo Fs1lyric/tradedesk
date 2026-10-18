@@ -15,6 +15,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models import BacktestRun, NewsItem, NewsSource, NewsTicker
+from app.services.analytics.metrics import summarize
 from app.services.backtest.engine import BacktestConfig, Backtester, NewsEvent
 from app.services.backtest.event_study import event_study
 from app.services.backtest.strategies import build_strategy
@@ -85,15 +86,20 @@ def execute(kind: str, strategy: str, params: dict[str, Any], data: dict[str, li
         return {"observations": es.observations}, es
     res = Backtester(cfg).run(build_strategy(strategy, params.get("strategy_params") or {}),
                               data, news)
+    # The engine marks equity through the warm-up too; report only the trading window.
+    first = next((i for i, ts in enumerate(res.timestamps) if ts >= start), len(res.equity))
+    ts, equity = res.timestamps[first:], res.equity[first:]
+    pnls = np.array([t.realized_pnl for t in res.trades if t.closed])
+    metrics = summarize(equity, trade_pnls=pnls) if len(equity) else res.metrics
     result: dict[str, Any] = {
-        "equity": _curve(res.timestamps, res.equity), "trades": _trades(res.trades),
+        "equity": _curve(ts, equity), "trades": _trades(res.trades),
         "rejections": dict(res.rejections), "n_orders": res.n_orders,
     }
     if kind == "compare":
         report = compare_trades(res.trades, data, bench)
         result["mean_diff"] = report.mean_diff
         result["comparisons"] = report.rows
-    return res.metrics, result
+    return metrics, result
 
 
 async def load_news_events(sessions: async_sessionmaker[AsyncSession], symbols: list[str],

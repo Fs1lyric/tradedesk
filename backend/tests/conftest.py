@@ -50,7 +50,10 @@ async def api(migrated_db: str):
 
     engine = make_engine(migrated_db)
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE users, symbols, news_sources CASCADE"))
+        await conn.execute(text(
+            "TRUNCATE users, symbols, news_sources, news_items, price_bars, signal_snapshots"
+            " CASCADE"
+        ))
     settings = Settings(jwt_secret="t" * 32, master_key=base64.b64encode(b"k" * 32).decode())
     app = create_app(settings, make_sessionmaker(engine), events=InMemoryEventBus(),
                      locks=LocalAccountLocks())
