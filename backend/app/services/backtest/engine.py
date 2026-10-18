@@ -77,6 +77,7 @@ class BacktestConfig:
     risk_limits: RiskLimits = field(default_factory=RiskLimits)
     bar_duration: timedelta = timedelta(hours=16)  # Alpaca daily bars start at 00:00 ET
     allow_short: bool = True
+    trade_start: datetime | None = None  # orders before this are dropped (indicator warm-up)
 
 
 @dataclass
@@ -240,6 +241,8 @@ class Backtester:
 
     # orders
     def _submit(self, o: SimOrder) -> None:
+        if self.cfg.trade_start is not None and self.now < self.cfg.trade_start:
+            return
         price = self.mark.get(o.symbol)
         if price is None:
             self.rejections["no_price"] += 1
