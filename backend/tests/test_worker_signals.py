@@ -79,8 +79,9 @@ async def test_universe_from_watchlists_and_rules(api, market):
 async def test_compute_signals(api, market):
     *_, rt, bars = market
     async with rt.sessions.begin() as s:
-        item = NewsItem(url="u", url_canonical="u", title="t", available_at=NOW - timedelta(hours=1),
-                        simhash=1, event_type="earnings", event_mult=1.5, sentiment=0.8,
+        item = NewsItem(url="u", url_canonical="u", title="t",
+                        available_at=NOW - timedelta(hours=1), simhash=1, event_type="earnings",
+                        event_mult=1.5, sentiment=0.8,
                         novelty=1.0)
         s.add(item)
         await s.flush()
