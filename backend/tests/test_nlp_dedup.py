@@ -10,7 +10,7 @@ def test_canonical_url_strips_tracking_and_www():
 
 def test_simhash_near_duplicates_are_close_and_unrelated_far():
     a = dedup.simhash64("Apple beats earnings estimates as iPhone sales surge in China")
-    b = dedup.simhash64("Apple beats earnings estimates as iPhone sales surge in China, shares rise")
+    b = dedup.simhash64("Apple beats earnings estimates as iPhone sales surge in China; shares up")
     c = dedup.simhash64("Federal Reserve holds rates steady, signals two cuts later this year")
     assert dedup.hamming(a, b) < dedup.hamming(a, c)
     assert dedup.hamming(a, a) == 0

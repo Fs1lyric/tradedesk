@@ -22,7 +22,9 @@ _RULES: list[tuple[str, re.Pattern[str]]] = [
     ("regulatory", re.compile(r"\b(FDA|SEC approv\w*|FTC|antitrust|EMA|clearance)\b")),
     (
         "legal",
-        re.compile(r"\b(lawsuit|sued|sues|probe|investigation|indict\w*|settle\w*|fine[sd]?)\b", re.I),
+        re.compile(
+            r"\b(lawsuit|sued|sues|probe|investigation|indict\w*|settle\w*|fine[sd]?)\b", re.I
+        ),
     ),
     ("guidance", re.compile(r"\b(guidance|outlook|forecast)\b", re.I)),
     (
@@ -31,7 +33,9 @@ _RULES: list[tuple[str, re.Pattern[str]]] = [
     ),
     (
         "analyst",
-        re.compile(r"\b(upgrad\w*|downgrad\w*|price target|initiat\w* coverage|reiterat\w*)\b", re.I),
+        re.compile(
+            r"\b(upgrad\w*|downgrad\w*|price target|initiat\w* coverage|reiterat\w*)\b", re.I
+        ),
     ),
     ("product", re.compile(r"\b(launch\w*|unveil\w*|releases?|recall\w*)\b", re.I)),
     (
