@@ -105,19 +105,19 @@ def event_study(
                 obs.append((ev, name, rs - beta * rbh))
 
     keyed: dict[tuple[str, str, str, str], list[tuple[NewsEvent, float]]] = defaultdict(list)
-    for ev, h, ar in obs:
+    for ev, hz, ar in obs:
         b = sentiment_bucket(ev.sentiment)
-        for key in ((ev.event_type, "*", "*", h), (ev.event_type, ev.source, b, h),
-                    ("*", ev.source, "*", h), ("*", "*", b, h)):
+        for key in ((ev.event_type, "*", "*", hz), (ev.event_type, ev.source, b, hz),
+                    ("*", ev.source, "*", hz), ("*", "*", b, hz)):
             keyed[key].append((ev, ar))
 
     groups = []
-    for (et, src, bucket, h), rows_ in sorted(keyed.items()):
+    for (et, src, bucket, hz), rows_ in sorted(keyed.items()):
         ars = np.array([a for _, a in rows_])
         signs = np.array([np.sign(e.sentiment or e.impact) for e, _ in rows_])
         hits = float(np.mean(np.sign(ars) == signs)) if len(ars) else 0.0
         groups.append(GroupStat(
-            et, src, bucket, h, len(ars), float(ars.mean()),
+            et, src, bucket, hz, len(ars), float(ars.mean()),
             clustered_t(ars, [e.available_at.date() for e, _ in rows_]), hits,
         ))
     patterns = [g for g in groups if g.n >= PATTERN_MIN_N and abs(g.t_stat) > PATTERN_MIN_T]

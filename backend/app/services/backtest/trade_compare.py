@@ -5,6 +5,7 @@ from __future__ import annotations
 import bisect
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 
 import numpy as np
 
@@ -30,7 +31,7 @@ class ComparisonReport:
     mean_diff: dict[str, tuple[float, float, float]]  # alt -> (lo95, mean, hi95) of alt - actual
 
 
-def _bar_index(rows: list[PriceBar], ts: object) -> int:
+def _bar_index(rows: list[PriceBar], ts: datetime) -> int:
     return bisect.bisect_right([b.ts for b in rows], ts) - 1
 
 
