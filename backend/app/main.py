@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api import accounts, auth, news, recommendations, rules, watchlists
+from app.api import accounts, auth, news, orders, recommendations, rules, watchlists
 from app.api.trading import alpaca_broker
 from app.core.config import Settings, get_settings
 from app.db import make_engine, make_sessionmaker
@@ -35,6 +35,8 @@ def create_app(
     app.state.settings = settings or get_settings()
     app.state.sessions = sessions
     app.state.broker_factory = alpaca_broker
-    for module in (auth, accounts, watchlists, rules, news, recommendations):
+    for module in (
+        auth, accounts, watchlists, rules, news, recommendations, orders,
+    ):
         app.include_router(module.router)
     return app
