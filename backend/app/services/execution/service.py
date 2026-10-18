@@ -217,6 +217,9 @@ class ExecutionService:
 
     async def _save(self, rec: OrderRecord) -> None:
         await self.store.update_order(rec)
+        await self._notify(rec)
+
+    async def _notify(self, rec: OrderRecord) -> None:
         if self.on_order is not None:
             try:
                 await self.on_order(rec)
@@ -369,13 +372,14 @@ class ExecutionService:
         if rec.broker_order_id is None:
             rec.broker_order_id = u.order.broker_order_id
         self._apply_status(rec, u.order)
-        await self._save(rec)
+        await self.store.update_order(rec)
         if u.fill_id and u.fill_qty and u.fill_price is not None:
             signed = u.fill_qty if u.order.side == "buy" else -u.fill_qty
             await self.store.add_fill(FillRecord(
                 rec.id, rec.account_id, u.fill_id, rec.symbol, signed, u.fill_price,
                 u.at or self.clock(),
             ))
+        await self._notify(rec)  # after the fill, so listeners that reload trades see it
 
     async def drain_updates(self) -> int:
         """Process queued updates (in-memory brokers). Live code uses run_stream instead."""
