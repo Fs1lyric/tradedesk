@@ -1,12 +1,11 @@
 import asyncio
 
-from alembic import command
 from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.models import Base
-from tests.conftest import alembic_config, requires_db
+from tests.conftest import requires_db, run_alembic
 
 pytestmark = requires_db
 
@@ -68,8 +67,7 @@ def test_time_series_tables_are_hypertables_when_timescale_exists(migrated_db):
 
 
 def test_downgrade_then_upgrade_round_trips(migrated_db):
-    cfg = alembic_config()
-    command.downgrade(cfg, "base")
+    run_alembic("downgrade", "base")
     assert "orders" not in _db_schema(migrated_db)
-    command.upgrade(cfg, "head")
+    run_alembic("upgrade", "head")
     assert "orders" in _db_schema(migrated_db)

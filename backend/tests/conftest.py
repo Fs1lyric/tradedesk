@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -17,11 +18,17 @@ def alembic_config() -> Config:
     return cfg
 
 
+def run_alembic(cmd: str, target: str) -> None:
+    """Run an Alembic command on a worker thread: env.py calls asyncio.run, which can't nest
+    inside the event loop of an async test or fixture."""
+    with ThreadPoolExecutor(1) as pool:
+        pool.submit(getattr(command, cmd), alembic_config(), target).result()
+
+
 @pytest.fixture(scope="session")
 def migrated_db() -> str:
     """Rebuild the schema once per session and return the database URL."""
     assert DATABASE_URL is not None
-    cfg = alembic_config()
-    command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
+    run_alembic("downgrade", "base")
+    run_alembic("upgrade", "head")
     return DATABASE_URL

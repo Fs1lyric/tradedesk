@@ -97,7 +97,7 @@ async def test_daily_loss_halts_account(setup):
     broker.last_equity = 110_000  # down 9% today
     res = await svc.execute(buy())
     assert not res.risk.passed
-    assert store.halted["acct"]
+    assert await store.is_halted("acct", NOW)
 
 
 async def test_short_maps_to_sell(setup):
