@@ -36,7 +36,7 @@ extension/                        Manifest V3 news capture extension
 | 2 | Brokers: adapter protocol, Alpaca REST adapter, fake broker; execution service + reconciliation | done |
 | 3 | Settings + security; database models + Alembic migration; SQL execution store | done |
 | 4 | API: auth, accounts, watchlists, news, recommendations, rules, orders, trades, analytics, backtests, WebSocket | done |
-| 5 | Workers: ingest (RSS, Alpaca News), NLP pipeline, signals, execution, reconcile, snapshots, Beat schedule | todo |
+| 5 | Workers: ingest (RSS, Alpaca News), NLP pipeline, signals, execution, reconcile, snapshots, Beat schedule | done |
 | 6 | Frontend dashboard (8 pages in the spec) with CI screenshot job under Playwright | todo |
 | 7 | Browser extension | todo |
 | 8 | Live hardening: TOTP-gated live enable, IBKR/Schwab adapters | todo |
