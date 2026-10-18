@@ -112,7 +112,7 @@ class RiskManager:
         halt = False
 
         def add(name: str, ok: bool, detail: str = "") -> None:
-            checks.append(Check(name, ok, detail))
+            checks.append(Check(name, bool(ok), detail))  # numpy bools break JSON storage
 
         price = o.ref_price
         delta = SIDE_SIGN[o.side] * o.qty * price

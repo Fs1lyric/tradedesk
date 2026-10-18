@@ -97,3 +97,13 @@ def test_duplicate_and_cooldown():
     assert "duplicate" in failed(rm.check(intent(), state(recent_intent_keys={"i1"}), NOW))
     cd = {("r1", "AAPL"): NOW + timedelta(minutes=10)}
     assert "duplicate" in failed(rm.check(intent(rule_id="r1"), state(cooldowns=cd), NOW))
+
+
+def test_check_results_are_plain_bools_even_with_numpy_quotes():
+    import json
+
+    import numpy as np
+
+    o = intent(quote=Quote(np.float64(99.95), np.float64(100.05), NOW))
+    result = RiskManager(RiskLimits()).check(o, state(), NOW)
+    json.dumps(result.to_dict())  # raises on numpy bools
