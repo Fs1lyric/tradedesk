@@ -32,3 +32,36 @@ def migrated_db() -> str:
     run_alembic("downgrade", "base")
     run_alembic("upgrade", "head")
     return DATABASE_URL
+
+
+@pytest.fixture
+async def api(migrated_db: str):
+    """An httpx client on a fresh app over an emptied database."""
+    import base64
+
+    import httpx
+    from sqlalchemy import text
+
+    from app.core.config import Settings
+    from app.db import make_engine, make_sessionmaker
+    from app.main import create_app
+
+    engine = make_engine(migrated_db)
+    async with engine.begin() as conn:
+        await conn.execute(text("TRUNCATE users, symbols, news_sources CASCADE"))
+    settings = Settings(jwt_secret="t" * 32, master_key=base64.b64encode(b"k" * 32).decode())
+    app = create_app(settings, make_sessionmaker(engine))
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        client.app = app  # type: ignore[attr-defined]
+        yield client
+    await engine.dispose()
+
+
+async def signup(api, email: str = "a@example.com", password: str = "correct horse 1") -> dict:
+    """Register and log in; return auth headers."""
+    r = await api.post("/auth/register", json={"email": email, "password": password})
+    assert r.status_code == 201, r.text
+    r = await api.post("/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
