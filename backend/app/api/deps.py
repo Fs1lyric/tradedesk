@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated
 
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.security import TokenError, decode_token
-from app.models import User
+from app.models import BrokerAccount, User
 
 
 def get_settings(request: Request) -> Settings:
@@ -56,3 +57,23 @@ async def current_user(
 
 
 UserDep = Annotated[User, Depends(current_user)]
+
+
+def not_found(what: str = "not found") -> HTTPException:
+    return HTTPException(status.HTTP_404_NOT_FOUND, what)
+
+
+def is_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        return False
+    return True
+
+
+async def owned_account(session: AsyncSession, user: User, account_id: str) -> BrokerAccount:
+    """The user's broker account, or 404 (also for other users' ids, so they don't leak)."""
+    acct = await session.get(BrokerAccount, account_id) if is_uuid(account_id) else None
+    if acct is None or acct.user_id != user.id:
+        raise not_found("account not found")
+    return acct
