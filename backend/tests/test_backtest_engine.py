@@ -145,3 +145,15 @@ def test_multi_symbol_equity_is_marked_to_market():
     assert len(res.timestamps) == 3
     assert np.all(np.diff([t.timestamp() for t in res.timestamps]) > 0)
     assert "sharpe" in res.metrics
+
+
+def test_trade_start_suppresses_warmup_orders():
+    cfg = BacktestConfig(initial_cash=10_000, costs=FREE, bar_duration=timedelta(hours=6.5),
+                         trade_start=T0 + 2 * DAY)
+
+    class Always(Strategy):
+        def on_bar(self, ctx, symbol, bar):
+            return [SimOrder(symbol, "buy", 1)] if ctx.position(symbol) == 0 else []
+
+    res = run(Always(), {"X": bars([100, 101, 102, 103, 104])}, cfg)
+    assert res.fills[0].filled_at == T0 + 3 * DAY
