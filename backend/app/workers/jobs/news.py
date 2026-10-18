@@ -75,10 +75,10 @@ class NewsIngestor:
     async def _context(self, s: AsyncSession, now: datetime
                        ) -> tuple[NewsContext, list[ClusterCandidate], dict[str, list[np.ndarray]]]:
         symbols = list(await s.scalars(select(Symbol).where(Symbol.tradable)))
-        aliases = {}
-        for sym in symbols:
-            for name in [sym.name, *sym.aliases]:
-                aliases.setdefault(name, sym.symbol)
+        aliases: dict[str, str] = {}
+        for row in symbols:
+            for name in [row.name, *row.aliases]:
+                aliases.setdefault(name, row.symbol)
         rows = await s.execute(
             select(NewsItem.id, NewsItem.cluster_id, NewsItem.simhash, NewsItem.available_at)
             .where(NewsItem.available_at >= now - CLUSTER_LOOKBACK)
@@ -91,7 +91,7 @@ class NewsIngestor:
             return priors.get(symbol, [])
 
         ctx = NewsContext(
-            symbols={sym.symbol for sym in symbols}, aliases=AliasIndex(aliases),
+            symbols={row.symbol for row in symbols}, aliases=AliasIndex(aliases),
             sentiment=self.sentiment, embedder=self.embedder,
             cluster_candidates=lambda: candidates, prior_embeddings=prior_embeddings,
         )
@@ -103,8 +103,8 @@ class NewsIngestor:
                    NewsItem.embedding.is_not(None))
             .order_by(NewsItem.available_at.desc())
         )
-        for sym, vec in emb:
-            lst = priors.setdefault(sym, [])
+        for ticker, vec in emb:
+            lst = priors.setdefault(ticker, [])
             if len(lst) < NOVELTY_PRIOR:
                 lst.append(np.asarray(vec, dtype=float))
         return ctx, candidates, priors
