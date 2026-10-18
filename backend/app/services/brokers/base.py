@@ -80,3 +80,26 @@ class BrokerAdapter(Protocol):
     async def is_market_open(self) -> bool: ...
     async def asset_flags(self, symbol: str) -> tuple[bool, bool]: ...  # tradable, shortable
     def stream_trade_updates(self) -> AsyncIterator[TradeUpdate]: ...
+
+
+@dataclass(frozen=True)
+class PriceBar:
+    ts: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    vwap: float | None = None
+
+
+@dataclass(frozen=True)
+class NewsArticle:
+    id: str
+    headline: str
+    summary: str
+    body: str
+    url: str
+    created_at: datetime
+    symbols: list[str]
+    source: str
