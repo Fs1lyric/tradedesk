@@ -26,7 +26,7 @@ from app.core.security import (
     verify_password,
     verify_totp,
 )
-from app.models import AuditLog, RefreshToken, User
+from app.models import AuditLog, BrokerAccount, RefreshToken, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -180,3 +180,35 @@ async def totp_confirm(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "bad totp code")
     user.totp_secret_enc = encrypt_secret(body.secret, settings.master_key_bytes)
     session.add(AuditLog(user_id=user.id, action="totp_enabled"))
+
+
+class LiveEnable(BaseModel):
+    code: str
+
+
+@router.post("/live/enable", response_model=Me)
+async def live_enable(
+    body: LiveEnable, user: UserDep, session: SessionDep, settings: SettingsDep
+) -> Me:
+    """Live trading needs TOTP on the account and a fresh code at the moment it is switched on."""
+    if user.totp_secret_enc is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "enable totp first")
+    secret = decrypt_secret(user.totp_secret_enc, settings.master_key_bytes)
+    if not verify_totp(secret, body.code):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "bad totp code")
+    user.live_trading_enabled = True
+    session.add(AuditLog(user_id=user.id, action="live_trading_enabled"))
+    return await me(user)
+
+
+@router.post("/live/disable", response_model=Me)
+async def live_disable(user: UserDep, session: SessionDep) -> Me:
+    """Turning live off needs no code, and trips the kill switch on every live account."""
+    user.live_trading_enabled = False
+    await session.execute(
+        update(BrokerAccount)
+        .where(BrokerAccount.user_id == user.id, BrokerAccount.mode == "live")
+        .values(kill_switch=True)
+    )
+    session.add(AuditLog(user_id=user.id, action="live_trading_disabled"))
+    return await me(user)
