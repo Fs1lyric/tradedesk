@@ -61,6 +61,34 @@ jobs:
           name: screenshots
           path: frontend/e2e/screens/
 
+  extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run screenshots
+      - run: npm run zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: extension-screenshots
+          path: extension/e2e/screens/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tradedesk-extension
+          path: extension/tradedesk-extension.zip
+
   images:
     runs-on: ubuntu-latest
     steps:
