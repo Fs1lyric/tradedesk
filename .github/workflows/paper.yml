@@ -1,0 +1,47 @@
+name: paper
+# Manual end-to-end run against an Alpaca paper account. Needs the repo secrets
+# ALPACA_PAPER_KEY and ALPACA_PAPER_SECRET. The adapter is pinned to the paper endpoint, so
+# live keys would just be refused by Alpaca.
+on:
+  workflow_dispatch:
+    inputs:
+      fill:
+        description: "Also buy and flatten 1 SPY (only happens while the market is open)"
+        type: boolean
+        default: false
+
+concurrency: paper  # one run at a time against the same paper account
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tradedesk
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/tradedesk
+      ALPACA_PAPER_KEY: ${{ secrets.ALPACA_PAPER_KEY }}
+      ALPACA_PAPER_SECRET: ${{ secrets.ALPACA_PAPER_SECRET }}
+    steps:
+      - name: Check the secrets are set
+        run: |
+          if [ -z "$ALPACA_PAPER_KEY" ] || [ -z "$ALPACA_PAPER_SECRET" ]; then
+            echo "::error::Add ALPACA_PAPER_KEY and ALPACA_PAPER_SECRET as repo secrets"; exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.12
+      - run: uv sync --python 3.12
+      - run: uv run alembic upgrade head
+      - run: PYTHONPATH=. uv run python scripts/paper_smoke.py ${{ inputs.fill && '--fill' || '' }}
