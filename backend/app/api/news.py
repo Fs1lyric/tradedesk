@@ -1,20 +1,27 @@
-"""The scored news feed, newest first, with keyset pagination on (available_at, id)."""
+"""The scored news feed, newest first, with keyset pagination on (available_at, id), and
+pages captured by the browser extension."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Query, Request, Response, status
+from pydantic import AnyHttpUrl, BaseModel, Field, field_validator, model_validator
 from sqlalchemy import Select, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep, UserDep, not_found
 from app.api.watchlists import normalize_symbol
 from app.models import NewsItem, NewsSource, NewsTicker
+from app.services.nlp.dedup import canonical_url
+from app.services.nlp.pipeline import RawNewsItem
+from app.workers.jobs.news import NewsIngestor, source_id
 
 router = APIRouter(prefix="/news", tags=["news"])
+
+CAPTURE_SOURCE = "extension"
+CAPTURE_CREDIBILITY = 0.5  # a page someone chose to send, from a site we don't know
 
 
 class TickerOut(BaseModel):
@@ -100,3 +107,51 @@ async def get_news(news_id: int, user: UserDep, session: SessionDep) -> NewsDeta
     item, source = row
     base = _out(item, source, (await _tickers(session, [item.id]))[item.id])
     return NewsDetail(**base.model_dump(), body=item.body)
+
+
+class Capture(BaseModel):
+    url: AnyHttpUrl
+    title: str = Field(max_length=500)
+    body: str = Field(max_length=100_000)
+    published_at: datetime | None = None
+
+    @field_validator("title", "body")
+    @classmethod
+    def _strip(cls, v: str) -> str:
+        return v.strip()
+
+    @model_validator(mode="after")
+    def _some_text(self) -> Capture:
+        if not self.title and not self.body:
+            raise ValueError("page has no title or text")
+        return self
+
+
+class Captured(BaseModel):
+    stored: bool  # false when the url was already in the feed
+    item: NewsDetail
+
+
+@router.post("/capture", status_code=status.HTTP_201_CREATED, response_model=Captured)
+async def capture(body: Capture, user: UserDep, request: Request, response: Response) -> Captured:
+    """Run a captured page through the same scoring as the news workers. The ingestor commits
+    on its own sessions, so this handler doesn't use the request transaction."""
+    sessions = request.app.state.sessions
+    now = datetime.now(UTC)
+    url = str(body.url)
+    raw = RawNewsItem(url=url, title=body.title or url, body=body.body,
+                      source_credibility=CAPTURE_CREDIBILITY, social=False,
+                      available_at=now, published_at=body.published_at)
+    src = await source_id(sessions, CAPTURE_SOURCE, CAPTURE_SOURCE, CAPTURE_CREDIBILITY)
+    async with sessions() as s:
+        before = await s.scalar(select(NewsItem.id).where(
+            NewsItem.url_canonical == canonical_url(url)))
+    if before is None:
+        await NewsIngestor(sessions).ingest([raw], src)
+    else:
+        response.status_code = status.HTTP_200_OK
+    async with sessions() as s:
+        row = (await s.execute(_feed().where(NewsItem.url_canonical == canonical_url(url)))).one()
+        item, source = row
+        base = _out(item, source, (await _tickers(s, [item.id]))[item.id])
+    return Captured(stored=before is None, item=NewsDetail(**base.model_dump(), body=item.body))
