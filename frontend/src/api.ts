@@ -90,6 +90,7 @@ export const api = {
   totpEnroll: () => post<{ secret: string; uri: string }>("/auth/totp/enroll"),
   totpConfirm: (secret: string, code: string) => post<void>("/auth/totp/confirm", { secret, code }),
   liveEnable: (code: string) => post<Me>("/auth/live/enable", { code }),
+  liveDisable: () => post<Me>("/auth/live/disable", {}),
 
   accounts: () => get<Account[]>("/accounts"),
   createAccount: (body: Record<string, unknown>) => post<Account>("/accounts", body),

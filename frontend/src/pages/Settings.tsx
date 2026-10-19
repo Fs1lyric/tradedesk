@@ -8,21 +8,29 @@ export function Settings() {
   return <div className="grid two"><Accounts /><Watchlists /><Security /></div>;
 }
 
+// What each broker calls the two credential fields.
+const BROKERS: Record<string, { name: string; key: string; secret: string }> = {
+  alpaca: { name: "Alpaca", key: "API key id", secret: "API secret" },
+  ibkr: { name: "Interactive Brokers", key: "Account id (U1234567)", secret: "Gateway URL (https://localhost:5000)" },
+  schwab: { name: "Schwab", key: "Account hash", secret: '{"app_key": …, "app_secret": …, "refresh_token": …}' },
+};
+
 function Accounts() {
   const { accounts, reload, select, current } = useAccounts();
-  const [form, setForm] = useState({ label: "", api_key: "", api_secret: "", mode: "paper" });
+  const [form, setForm] = useState({ broker: "alpaca", label: "", api_key: "", api_secret: "", mode: "paper" });
   const [error, setError] = useState<string | null>(null);
   const add = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
-      const a = await api.createAccount({ broker: "alpaca", ...form });
-      setForm({ label: "", api_key: "", api_secret: "", mode: "paper" });
+      const a = await api.createAccount(form);
+      setForm({ ...{ broker: "alpaca", label: "", api_key: "", api_secret: "", mode: "paper" }, broker: form.broker });
       await reload();
       select(a.id);
     } catch (err) { setError((err as Error).message); }
   };
   const act = (p: Promise<unknown>) => p.then(reload, (e: Error) => setError(e.message));
+  const fields = BROKERS[form.broker];
   return (
     <Panel title="Broker accounts">
       {!accounts.length ? <Empty>No accounts yet. Paper keys from Alpaca are the place to start.</Empty> : (
@@ -43,10 +51,13 @@ function Accounts() {
       )}
       <form className="stack" onSubmit={add}>
         <h3>Add an account</h3>
+        <select value={form.broker} onChange={(e) => setForm({ ...form, broker: e.target.value })} aria-label="Broker">
+          {Object.entries(BROKERS).map(([id, b]) => <option key={id} value={id}>{b.name}</option>)}
+        </select>
         <input placeholder="Label" value={form.label} required onChange={(e) => setForm({ ...form, label: e.target.value })} aria-label="Label" />
-        <input placeholder="API key id" value={form.api_key} required onChange={(e) => setForm({ ...form, api_key: e.target.value })} aria-label="API key id" />
-        <input placeholder="API secret" type="password" value={form.api_secret} required autoComplete="off"
-          onChange={(e) => setForm({ ...form, api_secret: e.target.value })} aria-label="API secret" />
+        <input placeholder={fields.key} value={form.api_key} required onChange={(e) => setForm({ ...form, api_key: e.target.value })} aria-label={fields.key} />
+        <input placeholder={fields.secret} type="password" value={form.api_secret} required autoComplete="off"
+          onChange={(e) => setForm({ ...form, api_secret: e.target.value })} aria-label={fields.secret} />
         <select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })} aria-label="Mode">
           <option value="paper">paper</option><option value="live">live (needs live trading enabled)</option>
         </select>
@@ -107,7 +118,14 @@ function Security() {
         </form>
       ) : <button onClick={() => api.totpEnroll().then(setEnroll, (e: Error) => setError(e.message))}>Set up two-factor</button>)}
       <h3>Live trading</h3>
-      {me.data?.live_trading_enabled ? <p><Badge kind="bad">enabled</Badge> Live accounts can place real orders.</p> : (
+      {me.data?.live_trading_enabled ? (
+        <div className="stack">
+          <p><Badge kind="bad">enabled</Badge> Live accounts can place real orders.</p>
+          <button className="danger" onClick={() => confirm("Turn off live trading? Every live account gets its kill switch set.") && run(api.liveDisable())}>
+            Disable live trading
+          </button>
+        </div>
+      ) : (
         <form className="stack" onSubmit={(e) => { e.preventDefault(); run(api.liveEnable(liveCode)); }}>
           <p className="small">Live trading needs two-factor turned on, and a fresh code to switch it on.</p>
           <input inputMode="numeric" placeholder="6-digit code" value={liveCode} disabled={!me.data?.totp_enabled}
