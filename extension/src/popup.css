@@ -1,0 +1,33 @@
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #16191d; --muted: #646b75; --border: #e1e4e8;
+  --accent: #2f6fde; --accent-text: #ffffff; --up: #138a4b; --down: #c8352b; --chip: #eef1f5;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216; --panel: #171b21; --text: #e6e9ee; --muted: #8b939e; --border: #262c34;
+    --accent: #5b8ff0; --accent-text: #0b0e12; --up: #3cc47c; --down: #f0685d; --chip: #222831;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; width: 340px; padding: 12px 14px 14px; background: var(--bg); color: var(--text);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+header strong { font-size: 15px; }
+#who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+input, button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 10px; }
+button { cursor: pointer; } button:disabled { opacity: .5; cursor: wait; }
+button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.muted { color: var(--muted); } .small { font-size: 12px; } p { margin: 0; }
+.error { margin-top: 10px; color: var(--down); }
+details summary { cursor: pointer; color: var(--muted); }
+details .stack { margin-top: 8px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.card h2 { margin: 4px 0 6px; font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.chip { background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+.up { color: var(--up); } .down { color: var(--down); }

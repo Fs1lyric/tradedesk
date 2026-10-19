@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tradedesk</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header><strong>tradedesk</strong><span id="who" class="muted small"></span></header>
+
+  <form id="signin" class="stack" hidden>
+    <p class="small muted">Sign in to the tradedesk backend to send pages to its news feed.</p>
+    <label>Server<input id="server" type="url" required value="http://localhost:8000"></label>
+    <label>Email<input id="email" type="email" required autocomplete="username"></label>
+    <label>Password<input id="password" type="password" required autocomplete="current-password"></label>
+    <label id="totp-row" hidden>Two-factor code<input id="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></label>
+    <button class="primary">Sign in</button>
+  </form>
+
+  <section id="ready" class="stack" hidden>
+    <button id="send" class="primary">Send this page</button>
+    <p class="small muted">Select text first to send only the selection. Shortcut: Alt+Shift+T, or right-click a page.</p>
+    <div id="result" hidden></div>
+    <details>
+      <summary class="small">Settings</summary>
+      <div class="stack">
+        <label>Dashboard URL<input id="dashboard" type="url" placeholder="http://localhost:5173"></label>
+        <button id="signout" type="button">Sign out</button>
+      </div>
+    </details>
+  </section>
+
+  <p id="error" class="error" role="alert" hidden></p>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
