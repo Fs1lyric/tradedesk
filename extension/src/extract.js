@@ -36,6 +36,7 @@
   }
 
   function httpUrl(href, base) {
+    if (!href) return null;
     try {
       const u = new URL(href, base);
       return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
