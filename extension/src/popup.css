@@ -11,6 +11,7 @@
   }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* .stack sets display, which would beat the attribute */
 body { margin: 0; width: 340px; padding: 12px 14px 14px; background: var(--bg); color: var(--text);
   font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
 header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
