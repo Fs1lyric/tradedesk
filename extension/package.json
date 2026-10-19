@@ -1,0 +1,18 @@
+{
+  "name": "tradedesk-extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "check": "node scripts/check-manifest.js",
+    "screenshots": "playwright test",
+    "zip": "node scripts/check-manifest.js && zip -qr tradedesk-extension.zip manifest.json src icons"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.0",
+    "jsdom": "25.0.1",
+    "vite": "5.4.8",
+    "vitest": "2.1.2"
+  }
+}
