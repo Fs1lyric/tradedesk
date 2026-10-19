@@ -38,7 +38,9 @@ def _fill(prev: BrokerOrder | None, cur: BrokerOrder) -> TradeUpdate | None:
                        fill_qty=qty, fill_price=notional / qty, at=cur.updated_at)
 
 
-def diff_orders(state: OrderState, orders: list[BrokerOrder]) -> tuple[list[TradeUpdate], OrderState]:
+def diff_orders(
+    state: OrderState, orders: list[BrokerOrder]
+) -> tuple[list[TradeUpdate], OrderState]:
     """Updates implied by a fresh order list, and the state to diff the next list against."""
     ups: list[TradeUpdate] = []
     nxt = dict(state)

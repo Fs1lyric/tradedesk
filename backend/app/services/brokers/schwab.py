@@ -36,7 +36,8 @@ def parse_credentials(secret: str) -> tuple[str, str, str]:
         d = json.loads(secret)
         return str(d["app_key"]), str(d["app_secret"]), str(d["refresh_token"])
     except (ValueError, TypeError, KeyError) as e:
-        raise ValueError("schwab secret must be JSON with app_key, app_secret, refresh_token") from e
+        raise ValueError(
+            "schwab secret must be JSON with app_key, app_secret and refresh_token") from e
 
 
 def price_str(p: float) -> str:
@@ -55,11 +56,13 @@ def _instruction(side: str, position: float) -> str:
 
 def _order(d: dict[str, Any]) -> BrokerOrder:
     leg = d["orderLegCollection"][0]
-    execs = [x for a in d.get("orderActivityCollection") or [] for x in a.get("executionLegs") or []]
+    activity = d.get("orderActivityCollection") or []
+    execs = [x for a in activity for x in a.get("executionLegs") or []]
     filled = float(d.get("filledQuantity") or 0)
     qty = float(d.get("quantity") or 0)
     exec_qty = sum(float(x["quantity"]) for x in execs)
-    avg = sum(float(x["quantity"]) * float(x["price"]) for x in execs) / exec_qty if exec_qty else None
+    notional = sum(float(x["quantity"]) * float(x["price"]) for x in execs)
+    avg = notional / exec_qty if exec_qty else None
     raw = str(d.get("status", ""))
     status = STATUS.get(raw) or ("partially_filled" if 0 < filled < qty else "accepted")
     when = d.get("closeTime") or d.get("enteredTime")
