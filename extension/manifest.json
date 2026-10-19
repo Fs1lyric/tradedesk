@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "tradedesk news capture",
+  "short_name": "tradedesk",
+  "version": "0.1.0",
+  "description": "Send the article you are reading to tradedesk, where it is scored and linked to tickers.",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "service_worker": "src/background.js", "type": "module" },
+  "action": {
+    "default_title": "tradedesk",
+    "default_popup": "src/popup.html",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
+  },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "commands": {
+    "capture-page": { "suggested_key": { "default": "Alt+Shift+T" }, "description": "Send this page to tradedesk" }
+  }
+}
