@@ -21,6 +21,9 @@ test("login", async ({ page }) => {
   await shot(page, "login");
 });
 
+// A visible element holding the text; <option>s and other hidden copies don't count.
+const seen = (page: Page, text: string) => page.getByText(text).locator("visible=true").first();
+
 const pages: [string, string, string][] = [
   ["dashboard", "/", "Pending recommendations"],
   ["news", "/news", "Nvidia (NVDA) raises guidance"],
@@ -35,7 +38,7 @@ for (const [name, path, text] of pages) {
   test(name, async ({ page }) => {
     await signedIn(page);
     await page.goto(path);
-    await expect(page.getByText(text).first()).toBeVisible();
+    await expect(seen(page, text)).toBeVisible();
     await shot(page, name);
   });
 }
@@ -52,7 +55,7 @@ test("no horizontal scroll on any page", async ({ page }) => {
   await signedIn(page);
   for (const [, path, text] of pages) {
     await page.goto(path);
-    await expect(page.getByText(text).first()).toBeVisible();
+    await expect(seen(page, text)).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, path).toBeLessThanOrEqual(1);
   }
