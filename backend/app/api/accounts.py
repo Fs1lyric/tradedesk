@@ -6,12 +6,20 @@ from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PositiveFloat,
+    PositiveInt,
+    model_validator,
+)
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, SettingsDep, UserDep, owned_account
 from app.core.security import decrypt_secret, encrypt_secret
 from app.models import AuditLog, BrokerAccount
+from app.services.brokers.schwab import parse_credentials
 from app.services.risk.manager import RiskLimits
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -31,12 +39,18 @@ class RiskLimitsPatch(BaseModel):
 
 
 class AccountIn(BaseModel):
-    broker: Literal["alpaca"]
+    broker: Literal["alpaca", "ibkr", "schwab"]
     mode: Literal["paper", "live"] = "paper"
     label: str = Field(min_length=1, max_length=100)
     api_key: str = Field(min_length=1)
     api_secret: str = Field(min_length=1)
     risk_limits: RiskLimitsPatch = RiskLimitsPatch()
+
+    @model_validator(mode="after")
+    def _secret_shape(self) -> AccountIn:
+        if self.broker == "schwab":
+            parse_credentials(self.api_secret)  # ValueError becomes a 422
+        return self
 
 
 class AccountPatch(BaseModel):
