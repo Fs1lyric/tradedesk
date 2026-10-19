@@ -22,10 +22,12 @@ class Api:
         body = req.content.decode() if req.content else None
         self.sent.append((req.method, path, body))
         if path == "/v1/oauth/token":
-            assert req.headers["Authorization"] == "Basic " + base64.b64encode(b"key:secret").decode()
+            basic = base64.b64encode(b"key:secret").decode()
+            assert req.headers["Authorization"] == "Basic " + basic
             assert "grant_type=refresh_token" in body and "refresh_token=rt" in body
             self.tokens += 1
-            return httpx.Response(200, json={"access_token": f"at{self.tokens}", "expires_in": 1800})
+            token = {"access_token": f"at{self.tokens}", "expires_in": 1800}
+            return httpx.Response(200, json=token)
         if self.expire_next:
             self.expire_next = False
             return httpx.Response(401, json={"message": "expired"})
@@ -73,14 +75,16 @@ async def sw(server):
 
 
 def test_parse_credentials():
-    assert parse_credentials('{"app_key": "k", "app_secret": "s", "refresh_token": "r"}') == ("k", "s", "r")
+    creds = '{"app_key": "k", "app_secret": "s", "refresh_token": "r"}'
+    assert parse_credentials(creds) == ("k", "s", "r")
     with pytest.raises(ValueError):
         parse_credentials('{"app_key": "k"}')
 
 
 async def test_account_positions_quote_and_token_refresh(sw, server):
     acct = await sw.get_account()
-    assert (acct.equity, acct.cash, acct.buying_power, acct.last_equity) == (52000, 12000, 24000, 51000)
+    got = (acct.equity, acct.cash, acct.buying_power, acct.last_equity)
+    assert got == (52000, 12000, 24000, 51000)
     (p,) = await sw.get_positions()
     assert (p.symbol, p.qty) == ("MSFT", -20)
     server.expire_next = True  # a 401 refreshes the token once and retries

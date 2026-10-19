@@ -21,15 +21,17 @@ class Gateway:
         self.sent.append((req.method, path, body))
         if path == "/iserver/secdef/search":
             sym = req.url.params["symbol"]
-            return httpx.Response(200, json=[] if sym == "NOPE" else [{"conid": 265598, "symbol": sym}])
+            hits = [] if sym == "NOPE" else [{"conid": 265598, "symbol": sym}]
+            return httpx.Response(200, json=hits)
         if path == f"/portfolio/{ACCT}/summary":
             return httpx.Response(200, json={
                 "netliquidation": {"amount": 105000.0}, "totalcashvalue": {"amount": 40000.0},
                 "buyingpower": {"amount": 160000.0},
                 "previousdayequitywithloanvalue": {"amount": 104000.0}})
         if path == f"/portfolio/{ACCT}/positions/0":
-            return httpx.Response(200, json=[{"conid": 265598, "contractDesc": "AAPL",
-                                              "position": 50, "avgCost": 180.0, "mktValue": 9500.0}])
+            return httpx.Response(200, json=[{
+                "conid": 265598, "contractDesc": "AAPL", "position": 50, "avgCost": 180.0,
+                "mktValue": 9500.0}])
         if path == "/iserver/marketdata/snapshot":
             return httpx.Response(200, json=[{"conid": 265598, "84": "189.95", "86": "190.05"}])
         if path == f"/iserver/account/{ACCT}/orders":
@@ -64,7 +66,8 @@ async def ib(gw):
 
 async def test_account_positions_quote(ib):
     acct = await ib.get_account()
-    assert (acct.equity, acct.cash, acct.buying_power, acct.last_equity) == (105000, 40000, 160000, 104000)
+    got = (acct.equity, acct.cash, acct.buying_power, acct.last_equity)
+    assert got == (105000, 40000, 160000, 104000)
     (p,) = await ib.get_positions()
     assert (p.symbol, p.qty, p.avg_entry_price, p.market_value) == ("AAPL", 50, 180.0, 9500.0)
     q = await ib.get_quote("AAPL")
@@ -82,8 +85,11 @@ async def test_submit_confirms_warnings_and_sends_bracket_children(ib, gw):
     parent, tp, sl = body["orders"]
     assert parent == {"conid": 265598, "orderType": "LMT", "side": "BUY", "quantity": 10,
                       "price": 190.0, "tif": "DAY", "cOID": "coid-1", "outsideRTH": False}
-    assert (tp["orderType"], tp["side"], tp["price"], tp["parentId"]) == ("LMT", "SELL", 200.0, "coid-1")
-    assert (sl["orderType"], sl["side"], sl["price"], sl["parentId"]) == ("STP", "SELL", 185.0, "coid-1")
+    def leg(x):
+        return x["orderType"], x["side"], x["price"], x["parentId"]
+
+    assert leg(tp) == ("LMT", "SELL", 200.0, "coid-1")
+    assert leg(sl) == ("STP", "SELL", 185.0, "coid-1")
     assert ("POST", "/iserver/reply/reply-1", {"confirmed": True}) in gw.sent
 
 
