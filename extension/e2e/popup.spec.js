@@ -46,6 +46,7 @@ test("signed out, asks for the two-factor code when the server wants one", async
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("alert")).toHaveText("totp required");
   await expect(page.getByLabel("Two-factor code")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send this page" })).toBeHidden();
   await shot(page, "signin");
 });
 
@@ -53,6 +54,7 @@ test("signed in, sends the page and shows its score", async ({ page }) => {
   await stubChrome(page, { server: "http://localhost:8000", refresh: "r1", dashboard: "http://localhost:5173" });
   await page.goto("/src/popup.html");
   await expect(page.getByText("localhost:8000")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeHidden();
   await page.getByRole("button", { name: "Send this page" }).click();
   await expect(page.getByText("Saved to the feed")).toBeVisible();
   await expect(page.getByText("NVDA")).toBeVisible();
