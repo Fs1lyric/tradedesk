@@ -37,9 +37,9 @@ extension/                        Manifest V3 news capture extension
 | 3 | Settings + security; database models + Alembic migration; SQL execution store | done |
 | 4 | API: auth, accounts, watchlists, news, recommendations, rules, orders, trades, analytics, backtests, WebSocket | done |
 | 5 | Workers: ingest (RSS, Alpaca News), NLP pipeline, signals, execution, reconcile, snapshots, Beat schedule | done |
-| 6 | Frontend dashboard (8 pages in the spec) with CI screenshot job under Playwright | todo |
-| 7 | Browser extension | todo |
-| 8 | Live hardening: TOTP-gated live enable, IBKR/Schwab adapters | todo |
+| 6 | Frontend dashboard (8 pages in the spec) with CI screenshot job under Playwright | done |
+| 7 | Browser extension: MV3 capture popup, context menu, `POST /news/capture` | done |
+| 8 | Live hardening: TOTP-gated live enable, IBKR/Schwab adapters | done |
 
 ## Decisions
 
@@ -50,7 +50,26 @@ extension/                        Manifest V3 news capture extension
 - Backtest and live share the same `Strategy`, `RiskManager`, cost model and lot matcher.
 - Walk-forward uses seeded random search, not Optuna, to keep dependencies small.
 
-## Next session
+## Status (2026-10-19)
+
+All phases are built and green in CI (backend, frontend, extension, images). Session 4 finished:
+- Phase 8: `/auth/live/enable` (needs TOTP and a fresh code) and `/auth/live/disable` (sets the
+  kill switch on every live account). `IbkrAdapter` (Client Portal gateway: api_key = account
+  id, api_secret = gateway URL; TLS checks relaxed only for localhost) and `SchwabAdapter`
+  (api_key = account hash, api_secret = JSON app_key/app_secret/refresh_token; 401 refreshes
+  once). Neither broker pushes trade updates, so `brokers/polling.py` diffs the order list.
+- Phase 7: `extension/` plus `POST /news/capture` (source "extension", credibility 0.5; 201 when
+  stored, 200 when the canonical url was already in the feed).
+- Settings page: broker picker and a "Disable live trading" button.
+
+Known gaps, none blocking:
+- No market holiday calendar: `us_market_open` (IBKR) and the daily halt key use plain hours.
+- The Schwab refresh token expires after 7 days; the user re-runs the OAuth login and updates
+  the account secret. The IBKR gateway session also needs a periodic browser re-login.
+- `asset_flags` for IBKR and Schwab can't see borrow availability; unshortable shorts are
+  rejected by the broker instead of the risk check.
+
+## Earlier hand-off (session 3)
 
 Sessions 1-2 (2026-10-18) built phases 0-3. Session 3 (2026-10-18) built phase 4, green in CI
 (179 tests). Endpoints, all behind a bearer access token except register/login/refresh:
